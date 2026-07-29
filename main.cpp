@@ -26,7 +26,8 @@ public:
 
         Switch switchPos = SwitchVal();
         bool altPage = (switchPos == Switch::Up);
-        bool shGesture = (switchPos == Switch::Down) || shGateIn;
+        bool downPage = (switchPos == Switch::Down);
+        bool shGesture = downPage || shGateIn;
 
         if (!controlsInitialised_)
         {
@@ -36,26 +37,52 @@ public:
             pageMain_[1] = 2048;
             pageX_[1] = 1536;
             pageY_[1] = 2048;
+            downY_ = 2048;
             controlsInitialised_ = true;
             previousAltPage_ = altPage;
+            previousDownPage_ = downPage;
         }
 
-        if (previousAltPage_ != altPage)
+        if (!downPage && previousAltPage_ != altPage)
         {
             ArmPickup(mainPickup_, pageMain_[altPage ? 1 : 0], rawMainKnob);
             ArmPickup(xPickup_, pageX_[altPage ? 1 : 0], rawXKnob);
             ArmPickup(yPickup_, pageY_[altPage ? 1 : 0], rawYKnob);
             previousAltPage_ = altPage;
         }
+        if (previousDownPage_ != downPage)
+        {
+            if (downPage)
+            {
+                ArmPickup(downYPickup_, downY_, rawYKnob);
+            }
+            else
+            {
+                ArmPickup(mainPickup_, pageMain_[altPage ? 1 : 0], rawMainKnob);
+                ArmPickup(xPickup_, pageX_[altPage ? 1 : 0], rawXKnob);
+                ArmPickup(yPickup_, pageY_[altPage ? 1 : 0], rawYKnob);
+            }
+            previousDownPage_ = downPage;
+        }
 
         const int pageIndex = altPage ? 1 : 0;
-        const int32_t mainKnob = ApplyPickup(mainPickup_, pageMain_[pageIndex], rawMainKnob);
-        const int32_t xKnob = ApplyPickup(xPickup_, pageX_[pageIndex], rawXKnob);
-        const int32_t yKnob = ApplyPickup(yPickup_, pageY_[pageIndex], rawYKnob);
+        int32_t mainKnob = pageMain_[pageIndex];
+        int32_t xKnob = pageX_[pageIndex];
+        int32_t yKnob = pageY_[pageIndex];
+        if (downPage)
+        {
+            ApplyPickup(downYPickup_, downY_, rawYKnob);
+        }
+        else
+        {
+            mainKnob = ApplyPickup(mainPickup_, pageMain_[pageIndex], rawMainKnob);
+            xKnob = ApplyPickup(xPickup_, pageX_[pageIndex], rawXKnob);
+            yKnob = ApplyPickup(yPickup_, pageY_[pageIndex], rawYKnob);
+        }
 
-        const int32_t filterMainKnob = altPage ? pageMain_[0] : mainKnob;
-        const int32_t filterXKnob = altPage ? pageX_[0] : xKnob;
-        const int32_t filterYKnob = altPage ? pageY_[0] : yKnob;
+        const int32_t filterMainKnob = (altPage || downPage) ? pageMain_[0] : mainKnob;
+        const int32_t filterXKnob = (altPage || downPage) ? pageX_[0] : xKnob;
+        const int32_t filterYKnob = (altPage || downPage) ? pageY_[0] : yKnob;
         const int32_t setupMainKnob = altPage ? mainKnob : pageMain_[1];
         const int32_t setupXKnob = altPage ? xKnob : pageX_[1];
         const int32_t setupYKnob = altPage ? yKnob : pageY_[1];
@@ -66,6 +93,7 @@ public:
             setupMainKnob,
             setupXKnob,
             setupYKnob,
+            downY_,
             cv1,
             cv2,
             auxAudio,
@@ -101,7 +129,7 @@ public:
             --gateOutCounter_;
         }
 
-        UpdateLeds(altPage, shGesture, mainKnob, xKnob, yKnob);
+        UpdateLeds(altPage, shGesture, mainKnob, xKnob, downPage ? downY_ : yKnob);
     }
 
 private:
@@ -125,6 +153,8 @@ private:
     bool lastClockIn_ = false;
     bool controlsInitialised_ = false;
     bool previousAltPage_ = false;
+    bool previousDownPage_ = false;
+    int32_t downY_ = 2048;
 
     int32_t low_ = 0;
     int32_t band_ = 0;
@@ -140,6 +170,7 @@ private:
     SoftPickup mainPickup_ {};
     SoftPickup xPickup_ {};
     SoftPickup yPickup_ {};
+    SoftPickup downYPickup_ {};
     int32_t pageMain_[2] {};
     int32_t pageX_[2] {};
     int32_t pageY_[2] {};
@@ -182,6 +213,7 @@ private:
         int32_t setupMainKnob,
         int32_t setupXKnob,
         int32_t setupYKnob,
+        int32_t downYKnob,
         int32_t cv1,
         int32_t cv2,
         int32_t auxAudio,
@@ -194,7 +226,9 @@ private:
         params.resonance = 1800 - ((filterYKnob * 1500) >> 12) - (absAux >> 4);
         params.envelopeSensitivity = 768 + ((setupXKnob * 3000) >> 12) + (cv1 >> 1);
         params.envelopeRelease = setupYKnob;
-        params.sampleRate = 2400 + (((4095 - setupYKnob) * 45600) >> 12);
+        int32_t slowAmount = 4095 - downYKnob;
+        int32_t curvedSlow = (slowAmount * slowAmount) >> 12;
+        params.sampleRate = 960 + ((curvedSlow * 23040) >> 12);
         params.outputGain = 2048 + ((setupMainKnob * 4096) >> 12);
 
         params.rangeBase = Clamp(params.rangeBase, 64, 3900);

@@ -35,9 +35,11 @@ In the alternate page this is envelope sensitivity.
 `Y`
 
 In the main page this is resonance.
-In the alternate page this is envelope decay, and it also sets S&H speed during the gesture.
-At minimum, the alternate-page `Y` setting is the slowest internal S&H clock and longest decay.
-At maximum it is the fastest internal S&H clock and shortest decay, with the fastest rate capped for audio-rate flutter control.
+In the alternate page this is envelope decay only.
+In the momentary down position this is live S&H clock speed only.
+Down `Y` minimum is the slowest internal S&H clock; down `Y` maximum is the fastest.
+Down `Y` uses soft pickup, so entering the gesture will not jump the clock until
+the physical `Y` knob crosses the stored S&H speed.
 
 `Switch`
 
@@ -50,6 +52,10 @@ when you switch pages, a knob keeps the stored value for that page until the
 physical knob crosses near it, preventing sudden jumps.
 `UP` exposes setup controls but does not change the stored middle-page filter
 range, depth, or resonance just by switching.
+`DOWN` is a gesture layer: it uses the stored middle-page filter settings and
+lets `Y` control S&H clock speed without changing the middle-page resonance.
+The slowest internal S&H clock is deliberately moderate rather than extremely
+slow, so the gesture remains playable.
 
 ## Patch Points
 
@@ -117,7 +123,11 @@ Sample trigger pulse whenever a new S&H value is taken.
 
 - `Main`: Output Gain
 - `X`: Envelope Sensitivity
-- `Y`: Decay / S&H Speed
+- `Y`: Envelope Decay
+
+`Down` momentary gesture
+
+- `Y`: S&H Speed
 
 ## Build
 
