@@ -36,7 +36,8 @@ In the alternate page this is envelope sensitivity.
 
 In the main page this is resonance.
 In the alternate page this is envelope decay, and it also sets S&H speed during the gesture.
-At minimum, the alternate-page `Y` setting is now the slowest internal S&H clock.
+At minimum, the alternate-page `Y` setting is the slowest internal S&H clock and longest decay.
+At maximum it is the fastest internal S&H clock and shortest decay, with the fastest rate capped for audio-rate flutter control.
 
 `Switch`
 
@@ -47,6 +48,8 @@ At minimum, the alternate-page `Y` setting is now the slowest internal S&H clock
 The `UP` and `MIDDLE` pages now use soft pickup:
 when you switch pages, a knob keeps the stored value for that page until the
 physical knob crosses near it, preventing sudden jumps.
+`UP` exposes setup controls but does not change the stored middle-page filter
+range, depth, or resonance just by switching.
 
 ## Patch Points
 

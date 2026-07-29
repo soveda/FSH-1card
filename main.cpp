@@ -33,9 +33,9 @@ public:
             pageMain_[0] = rawMainKnob;
             pageX_[0] = rawXKnob;
             pageY_[0] = rawYKnob;
-            pageMain_[1] = rawMainKnob;
-            pageX_[1] = rawXKnob;
-            pageY_[1] = rawYKnob;
+            pageMain_[1] = 2048;
+            pageX_[1] = 1536;
+            pageY_[1] = 2048;
             controlsInitialised_ = true;
             previousAltPage_ = altPage;
         }
@@ -53,10 +53,26 @@ public:
         const int32_t xKnob = ApplyPickup(xPickup_, pageX_[pageIndex], rawXKnob);
         const int32_t yKnob = ApplyPickup(yPickup_, pageY_[pageIndex], rawYKnob);
 
-        Parameters params = ComputeParameters(altPage, mainKnob, xKnob, yKnob, cv1, cv2, auxAudio, absAux);
+        const int32_t filterMainKnob = altPage ? pageMain_[0] : mainKnob;
+        const int32_t filterXKnob = altPage ? pageX_[0] : xKnob;
+        const int32_t filterYKnob = altPage ? pageY_[0] : yKnob;
+        const int32_t setupMainKnob = altPage ? mainKnob : pageMain_[1];
+        const int32_t setupXKnob = altPage ? xKnob : pageX_[1];
+        const int32_t setupYKnob = altPage ? yKnob : pageY_[1];
+
+        Parameters params = ComputeParameters(filterMainKnob,
+            filterXKnob,
+            filterYKnob,
+            setupMainKnob,
+            setupXKnob,
+            setupYKnob,
+            cv1,
+            cv2,
+            auxAudio,
+            absAux);
 
         UpdateEnvelope(absInput, params.envelopeSensitivity, params.envelopeRelease, clockEdge);
-        UpdateSampleHold(params.sampleRate, clockEdge, shGateIn);
+        UpdateSampleHold(params.sampleRate, clockEdge);
 
         int32_t modSource = envelope_;
         if (shGesture)
@@ -68,10 +84,9 @@ public:
         cutoff = Clamp(cutoff, 64, 3900);
 
         int32_t filtered = ProcessFilter(input, cutoff, params.resonance);
-        int32_t wet = (filtered * params.outputGain) >> 11;
-        int32_t dry = input >> 2;
-        int32_t wetMixed = (wet * 3072) >> 12;
-        int32_t output = SoftClip12(dry + wetMixed);
+        int32_t wet = (filtered * params.outputGain) >> 12;
+        int32_t dry = input >> 3;
+        int32_t output = SoftClip12(dry + wet);
 
         AudioOut1(output);
         AudioOut2(output);
@@ -161,10 +176,12 @@ private:
         return stored;
     }
 
-    Parameters ComputeParameters(bool altPage,
-        int32_t mainKnob,
-        int32_t xKnob,
-        int32_t yKnob,
+    Parameters ComputeParameters(int32_t filterMainKnob,
+        int32_t filterXKnob,
+        int32_t filterYKnob,
+        int32_t setupMainKnob,
+        int32_t setupXKnob,
+        int32_t setupYKnob,
         int32_t cv1,
         int32_t cv2,
         int32_t auxAudio,
@@ -172,26 +189,13 @@ private:
     {
         Parameters params {};
 
-        if (!altPage)
-        {
-            params.rangeBase = 192 + ((mainKnob * 3328) >> 12) + (cv1 >> 2) + (auxAudio >> 3);
-            params.depth = 256 + ((xKnob * 3200) >> 12) + (cv2 >> 3);
-            params.resonance = 128 + ((yKnob * 1500) >> 12) + (absAux >> 4);
-            params.envelopeSensitivity = 1792 + (cv1 >> 1);
-            params.envelopeRelease = 1024;
-            params.sampleRate = 24000;
-            params.outputGain = 3072;
-        }
-        else
-        {
-            params.rangeBase = 192 + ((xKnob * 3328) >> 12) + (cv1 >> 2) + (auxAudio >> 3);
-            params.depth = 256 + ((yKnob * 3200) >> 12) + (cv2 >> 3);
-            params.resonance = 128 + ((yKnob * 1500) >> 12) + (absAux >> 4);
-            params.envelopeSensitivity = 768 + ((xKnob * 3000) >> 12) + (cv1 >> 1);
-            params.envelopeRelease = 128 + (((4095 - yKnob) * 3600) >> 12);
-            params.sampleRate = 480 + (((4095 - yKnob) * 47520) >> 12);
-            params.outputGain = 2048 + ((mainKnob * 2047) >> 12);
-        }
+        params.rangeBase = 192 + ((filterMainKnob * 3328) >> 12) + (cv1 >> 2) + (auxAudio >> 3);
+        params.depth = 256 + ((filterXKnob * 3200) >> 12) + (cv2 >> 3);
+        params.resonance = 1800 - ((filterYKnob * 1500) >> 12) - (absAux >> 4);
+        params.envelopeSensitivity = 768 + ((setupXKnob * 3000) >> 12) + (cv1 >> 1);
+        params.envelopeRelease = setupYKnob;
+        params.sampleRate = 2400 + (((4095 - setupYKnob) * 45600) >> 12);
+        params.outputGain = 2048 + ((setupMainKnob * 4096) >> 12);
 
         params.rangeBase = Clamp(params.rangeBase, 64, 3900);
         params.depth = Clamp(params.depth, 64, 4095);
@@ -251,8 +255,14 @@ private:
         }
         else
         {
-            int32_t release = 2 + ((4095 - releaseControl) >> 10);
-            envelope_ -= (envelope_ - driven) >> release;
+            int32_t difference = envelope_ - driven;
+            int32_t releaseAmount = 2 + ((releaseControl * 510) >> 12);
+            int32_t fall = (difference * releaseAmount) >> 12;
+            if (fall < 1 && difference > 0)
+            {
+                fall = 1;
+            }
+            envelope_ -= fall;
         }
 
         if (clockEdge && envelope_ < 512)
@@ -261,13 +271,9 @@ private:
         }
     }
 
-    void UpdateSampleHold(int32_t sampleRateControl, bool clockEdge, bool shGateIn)
+    void UpdateSampleHold(int32_t sampleRateControl, bool clockEdge)
     {
         samplePeriod_ = sampleRateControl;
-        if (shGateIn && !clockEdge)
-        {
-            samplePeriod_ >>= 1;
-        }
         if (samplePeriod_ < 48)
         {
             samplePeriod_ = 48;
