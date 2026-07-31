@@ -6,8 +6,14 @@ Computer.
 This version is now aimed much more directly at the Maestro FSH-1 / modern
 F1shy style idea: a voltage-controlled low-pass filter that can be driven either
 by synth dynamics or by stepped sample-and-hold modulation.
-The normal middle/up behavior is an envelope-controlled low-pass filter, while
-the S&H gesture uses a separate pitch-like low-pass filter path.
+The normal middle/up behavior is an envelope-controlled low-pass filter with
+ratio-style cutoff movement, while the S&H gesture uses a separate pitch-like
+low-pass filter path.
+The envelope/manual range can close down into low-pass auto-wah territory, while
+the S&H path keeps a separate floor for articulation.
+The envelope follower is scaled for modular/euro-level sources, so a normal
+5-6Vpp oscillator should create usable movement instead of pinning the filter
+fully open.
 The S&H gesture is tuned as a pitch-like filter movement: random steps move the
 filter frequency around the stored base range, up to roughly an octave below and
 above before panel depth scaling and output clipping.
@@ -36,6 +42,9 @@ In the alternate page this is output gain / drive.
 
 In the main page this is depth.
 In the alternate page this is envelope sensitivity.
+The sensitivity range is tuned for modular-level oscillators and drum machines:
+low settings should stay restrained, while high settings should produce a broad
+auto-wah sweep without needing guitar-pedal-level gain staging.
 
 `Y`
 

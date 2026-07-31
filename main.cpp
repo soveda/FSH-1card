@@ -230,20 +230,20 @@ private:
     {
         Parameters params {};
 
-        params.rangeBase = 192 + ((filterMainKnob * 3328) >> 12) + (cv1 >> 2) + (auxAudio >> 3);
+        params.rangeBase = 32 + ((filterMainKnob * 3488) >> 12) + (cv1 >> 2) + (auxAudio >> 3);
         params.depth = 256 + ((filterXKnob * 3200) >> 12) + (cv2 >> 3);
         params.resonance = 1800 - ((filterYKnob * 1500) >> 12) - (absAux >> 4);
-        params.envelopeSensitivity = 1024 + ((setupXKnob * 7168) >> 12) + cv1;
+        params.envelopeSensitivity = 256 + ((setupXKnob * 2816) >> 12) + (cv1 >> 2);
         params.envelopeRelease = setupYKnob;
         int32_t slowAmount = 4095 - downYKnob;
         int32_t curvedSlow = (slowAmount * slowAmount) >> 12;
         params.sampleRate = 960 + ((curvedSlow * 23040) >> 12);
         params.outputGain = 2048 + ((setupMainKnob * 4096) >> 12);
 
-        params.rangeBase = Clamp(params.rangeBase, 64, 3900);
+        params.rangeBase = Clamp(params.rangeBase, 32, 3900);
         params.depth = Clamp(params.depth, 64, 4095);
         params.resonance = Clamp(params.resonance, 64, 1800);
-        params.envelopeSensitivity = Clamp(params.envelopeSensitivity, 128, 8192);
+        params.envelopeSensitivity = Clamp(params.envelopeSensitivity, 64, 3072);
         params.envelopeRelease = Clamp(params.envelopeRelease, 64, 4095);
         params.sampleRate = Clamp(params.sampleRate, 48, 48000);
         params.outputGain = Clamp(params.outputGain, 1024, 4095);
@@ -299,14 +299,16 @@ private:
 
     int32_t EnvelopeCutoff(int32_t baseCutoff, int32_t depth, bool inverted) const
     {
-        int32_t sweepRange = 256 + ((depth * 3328) >> 12);
-        int32_t shapedEnvelope = envelope_ + (envelope_ >> 1);
+        int32_t shapedEnvelope = envelope_;
         shapedEnvelope = Clamp(shapedEnvelope, 0, 4095);
         if (inverted)
         {
             shapedEnvelope = 4095 - shapedEnvelope;
         }
-        return baseCutoff + ((shapedEnvelope * sweepRange) >> 12);
+
+        int32_t maxRatio = 4096 + ((depth * 12288) >> 12);
+        int32_t ratio = 4096 + ((shapedEnvelope * (maxRatio - 4096)) >> 12);
+        return (baseCutoff * ratio) >> 12;
     }
 
     int32_t SampleHoldResonance(int32_t resonance) const
@@ -337,17 +339,16 @@ private:
 
     void UpdateEnvelope(int32_t absInput, int32_t sensitivityControl, int32_t releaseControl, bool clockEdge)
     {
-        int32_t liftedInput = absInput + (absInput >> 1);
-        if (liftedInput < 8)
+        if (absInput < 4)
         {
-            liftedInput = 0;
+            absInput = 0;
         }
-        int32_t driven = (liftedInput * sensitivityControl) >> 9;
+        int32_t driven = (absInput * sensitivityControl) >> 10;
         driven = Clamp(driven, 0, 4095);
 
         if (driven > envelope_)
         {
-            envelope_ += (driven - envelope_) >> 1;
+            envelope_ += (driven - envelope_) >> 3;
         }
         else
         {
