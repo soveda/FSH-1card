@@ -36,11 +36,18 @@ readme: |
   - **Middle**: Main control page
   - **Down (held)**: Sample and hold gesture
 
+  ## Controls
+
+  - **Middle**: Main = filter range, X = envelope/S&H depth, Y = resonance.
+  - **Up**: Main = output trim, X = envelope sensitivity, Y = envelope decay.
+  - **Down (held)**: Main = internal S&H clock speed with soft pickup.
+
   ## Performance patching
 
   - Patch **Pulse In 1** as an external retrigger / clock.
   - Patch **Pulse In 2** to force the sample-and-hold gesture high without touching the switch.
   - **CV Out 1** is always the stepped S&H voltage and **CV Out 2** is always the envelope follower, so both can patch elsewhere even when the audio voice is doing something different.
+  - **CV In 2** modulates depth strongly enough to be audible: positive CV widens the sweep and negative CV narrows it.
 
 panel:
   inputs:
@@ -54,7 +61,7 @@ panel:
       type: audio
     - id: CVIn1
       name: CV 1
-      description: Consistent modulation for filter range and envelope sensitivity.
+      description: Consistent modulation for filter range and envelope sensitivity in all switch positions.
       type: cv
     - id: CVIn2
       name: CV 2
@@ -66,7 +73,7 @@ panel:
       type: pulse
     - id: PulseIn2
       name: S&H Gate
-      description: Forces the sample-and-hold gesture high while the input is held high.
+      description: Qualified gate input that forces the sample-and-hold gesture high while held after a real low-to-high gate.
       type: pulse
   outputs:
     - id: AudioOut1
@@ -87,11 +94,11 @@ panel:
       type: cv
     - id: PulseOut1
       name: Clock Mirror
-      description: Mirrors the clock input state.
+      description: Mirrors Pulse In 1.
       type: pulse
     - id: PulseOut2
       name: Sample Trigger
-      description: Divided trigger pulse fired once for every four newly sampled random steps.
+      description: Divided sample trigger pulse fired once for every four newly sampled random steps.
       type: pulse
 
 controls:
@@ -118,7 +125,7 @@ controls:
     - when: { z: up }
       main:
         name: Output Trim
-        description: Output level trim for taming hot modular signals before the filtered signal clips.
+        description: Output level trim for taming hot modular signals before the filtered signal clips; stored startup value is minimum trim.
       x:
         name: Envelope Sensitivity
         description: Input sensitivity for synth dynamics.
@@ -147,7 +154,7 @@ controls:
           description: Lit when the alternate control page is active.
         - id: LED1
           name: Main
-          description: Brightness follows the Main knob position.
+          description: Brightness follows Main; while Down is held it follows Down-Main S&H speed.
         - id: LED2
           name: S&H Gesture
           description: Lit while the sample-and-hold gesture is active from the switch or Pulse In 2.

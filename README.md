@@ -1,126 +1,112 @@
 # F1shnet
 
-An FSH-1-inspired modulation effect card for the Music Thing Modular Workshop
-Computer.
+F1shnet is an FSH-1-inspired filter/sample-hold effect card for the Music Thing
+Modular Workshop Computer.
 
-This version is now aimed much more directly at the Maestro FSH-1 / modern
-F1shy style idea: a voltage-controlled low-pass filter that can be driven either
-by synth dynamics or by stepped sample-and-hold modulation.
-The normal middle/up behavior is an envelope-controlled low-pass filter with
-ratio-style cutoff movement, while the S&H gesture uses a separate pitch-like
-low-pass filter path.
-The envelope/manual range can close down into low-pass auto-wah territory, while
-the S&H path keeps a separate floor for articulation.
-The envelope follower is scaled for modular/euro-level sources, so a normal
-5-6Vpp oscillator should create usable movement instead of pinning the filter
-fully open.
-The S&H gesture is tuned as a pitch-like filter movement: random steps move the
-filter frequency around the stored base range, up to roughly an octave below and
-above before panel depth scaling and output clipping.
+It is not a schematic clone. The card takes the useful performance shape of the
+Maestro FSH-1 / F1shy idea and turns it into a simple Workshop Computer effect:
+a resonant low-pass filter animated either by an envelope follower or by stepped
+sample-and-hold movement.
 
-Rather than cloning a specific schematic, it adapts that behavior to the
-Workshop Computer panel and patch points, using one core voice plus two control
-pages and the Computer's momentary `DOWN` switch position:
+The current stable behaviour is tuned for Workshop/euro-level synth signals.
+Normal 5-6Vpp oscillators and drum machines should move the envelope without
+immediately pinning it open, and the output trim starts safely low on boot.
 
-- `UP` alternate control page
-- `MIDDLE` main control page
-- `DOWN` held sample-and-hold gesture
+## Modes
 
-The implementation follows the `ComputerCard` guidance in
-`Workshop_Computer/Demonstrations+HelloWorlds/AI/WORKSHOP_COMPUTER_AI_DIRECTIVE.md`:
-fixed-rate interrupt DSP, integer-first math, a self-contained release-style
-folder, and the standard Workshop Computer panel mapping.
+- `Middle`: main envelope-filter page.
+- `Up`: setup page for output trim and envelope response.
+- `Down`: momentary sample-and-hold performance gesture.
+
+`Up` and `Middle` use soft pickup. A knob will keep the stored value for that
+page until the physical knob crosses near it, preventing jumps when switching
+pages.
+
+`Down` also uses soft pickup for its S&H speed control. Releasing `Down` re-arms
+soft pickup for the page you return to.
 
 ## Controls
 
-`Main`
+`Middle` main page:
 
-In the main page this is filter range / base cutoff.
-In the alternate page this is output trim / gain, scaled to tame hot modular
-oscillators before the output clips.
-The stored startup value is minimum trim, so the card boots conservatively with
-hot oscillator patches.
-In the momentary down position this is live S&H clock speed only.
-Down `Main` minimum is the slowest internal S&H clock; down `Main` maximum is
-the fastest. Down `Main` uses soft pickup, so entering the gesture will not jump
-the clock until the physical `Main` knob crosses the stored S&H speed.
+- `Main`: filter range / base cutoff.
+- `X`: envelope and S&H depth.
+- `Y`: resonance.
 
-`X`
+`Up` setup page:
 
-In the main page this is depth.
-In the alternate page this is envelope sensitivity.
-The sensitivity range is tuned for modular-level oscillators and drum machines:
-low settings should stay restrained, while high settings should produce a broad
-auto-wah sweep without needing guitar-pedal-level gain staging.
+- `Main`: output trim. This is scaled for hot modular signals and boots at
+  minimum trim.
+- `X`: envelope sensitivity. The range is tuned for euro-level oscillators,
+  drum machines, and other modular signals.
+- `Y`: envelope decay. Minimum is longest, maximum is shortest.
 
-`Y`
+`Down` momentary gesture:
 
-In the main page this is resonance.
-In the alternate page this is envelope decay only.
+- `Main`: internal S&H clock speed. Minimum is slowest, maximum is fastest.
+- `X` and `Y`: not changed by the Down gesture; the S&H voice uses the stored
+  Middle-page depth and resonance settings.
 
-`Switch`
+## Audio Behaviour
 
-- `UP`: alternate control page
-- `MIDDLE`: main control page
-- `DOWN`: held sample and hold
+In normal envelope mode, the card is a wet low-pass auto-wah style effect.
+`Audio Out 1` and `Audio Out 2` use the same input and filter core settings, but
+with opposite envelope directions:
 
-The `UP` and `MIDDLE` pages now use soft pickup:
-when you switch pages, a knob keeps the stored value for that page until the
-physical knob crosses near it, preventing sudden jumps.
-`UP` exposes setup controls but does not change the stored middle-page filter
-range, depth, or resonance just by switching.
-`DOWN` is a gesture layer: it uses the stored middle-page filter settings and
-lets `Main` control S&H clock speed without changing the middle-page filter
-range.
-While held, the random S&H values move the filter frequency with an octave-style
-ratio around the stored middle-page range rather than moving the envelope.
-The S&H path has its own moderate lower cutoff floor so low `Main` settings stay bubbly
-rather than muddy.
-The S&H gesture uses a slightly damped resonance response so simple oscillator
-waves reveal the random cutoff steps without producing harsh ringing spikes.
-The slowest internal S&H clock is deliberately moderate rather than extremely
-slow, so the gesture remains playable.
+- `Audio Out 1`: envelope-up low-pass. Transients open the filter upward.
+- `Audio Out 2`: envelope-down low-pass. Transients close the filter from the
+  stored range.
+
+Holding `Down` or holding `Pulse In 2` replaces the envelope movement with the
+sample-and-hold gesture. In S&H mode, both audio outputs carry the same
+pitch-like stepped low-pass voice.
+
+The S&H path has:
+
+- an octave-style cutoff response around the stored Middle `Main` range.
+- a moderate lower cutoff floor so low `Main` settings stay articulate.
+- damped resonance to avoid harsh ringing spikes.
 
 ## Patch Points
 
 `Audio In 1`
 
-Signal to process.
+Main mono audio input to the filter engine.
 
 `Audio In 2`
 
-Secondary audio-rate control source used to push parameters around.
+Audio-rate modulation input. It nudges filter range and resonance response.
 
 `CV In 1`
 
-Consistent modulation for filter range and envelope sensitivity.
+Consistent modulation for filter range and envelope sensitivity in all switch
+positions.
 
 `CV In 2`
 
-Consistent modulation for depth.
-Positive CV makes the envelope/S&H sweep wider; negative CV makes it shallower.
+Consistent modulation for depth in all switch positions. Positive CV widens the
+envelope/S&H sweep; negative CV makes it shallower.
 
 `Pulse In 1`
 
-External clock / retrigger.
-In sample-and-hold mode it forces a new random step.
-In filter modes it can kick the envelope open.
+External clock / retrigger. In S&H mode it forces a new random step. In envelope
+mode it can kick the envelope open.
 
 `Pulse In 2`
 
-S&H gate input. After seeing a real low-to-high gate, it forces the
-sample-and-hold gesture high while held; this avoids a floating input stealing
-the envelope-filter audio path.
+S&H gate input. After seeing a real low-to-high gate, it forces the S&H gesture
+high while held. This is qualified to avoid a floating input stealing the normal
+envelope-filter path.
 
 `Audio Out 1`
 
-Fully wet envelope-up low-pass output. Plucks and transients open the filter upward.
+Fully wet envelope-up low-pass output. During S&H gesture this carries the
+shared S&H low-pass voice.
 
 `Audio Out 2`
 
-Fully wet envelope-down low-pass output. Plucks and transients close the filter from the
-same stored range, giving the opposite direction. During S&H gesture both audio
-outs carry the same pitch-like S&H low-pass voice.
+Fully wet envelope-down low-pass output. During S&H gesture this carries the
+shared S&H low-pass voice.
 
 `CV Out 1`
 
@@ -132,45 +118,42 @@ Envelope follower CV, always available.
 
 `Pulse Out 1`
 
-Mirrors Pulse In 1.
+Mirrors `Pulse In 1`.
 
 `Pulse Out 2`
 
-Divided sample trigger pulse, fired once for every four new S&H values.
+Divided sample trigger pulse. It fires once for every four new S&H values.
 
 ## LEDs
 
-- LEDs `1`, `3`, `5` follow Main, X, and Y.
-- LEDs `0` and `4` show alternate page vs main page.
-- LED `2` shows when the sample-and-hold gesture is active.
+- LED `0`: lit when the `Up` setup page is active.
+- LED `1`: follows `Main`; while `Down` is held it follows Down-Main S&H speed.
+- LED `2`: lit while the S&H gesture is active from `Down` or `Pulse In 2`.
+- LED `3`: follows `X`.
+- LED `4`: lit when the `Middle` main page is active.
+- LED `5`: follows `Y`.
 
-## Current Knob Layout
+## Stable Fallback
 
-`Middle` main page
+This folder includes a tested fallback UF2:
 
-- `Main`: Filter Range
-- `X`: Depth
-- `Y`: Resonance
+- `UF2/stable-fallback/F1shnet.0.1.0.stable-fallback.uf2`
+- SHA256:
+  `3555612944e22b2fd5f7e43f47b37cf9cb009db79590191a3bb5dd2187bd59d7`
 
-`Up` alternate page
-
-- `Main`: Output Trim
-- `X`: Envelope Sensitivity
-- `Y`: Envelope Decay
-
-`Down` momentary gesture
-
-- `Main`: S&H Speed
+The local Git tag `stable-fallback` points at the fallback marker commit. See
+`STABLE_FALLBACK.md` for the hardware-tested behaviour list.
 
 ## Build
 
-This folder is self-contained in the usual Workshop release style:
+This is a self-contained Workshop Computer release-style folder:
 
 - `main.cpp`
 - `ComputerCard.h`
 - `pico_sdk_import.cmake`
 - `CMakeLists.txt`
 - `info.yaml`
+- `UF2/F1shnet.0.1.0.uf2`
 
 Typical Pico SDK build flow:
 
@@ -181,7 +164,7 @@ cmake ..
 make -j4
 ```
 
-The build uses:
+The current build uses:
 
 - `PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64`
 - `pico_set_binary_type(... copy_to_ram)`
@@ -190,9 +173,7 @@ The build uses:
 
 ## Notes
 
-- F1shnet is a Workshop Computer interpretation of the FSH-1 idea, not a verified
-  schematic clone.
-- The current engine is a simple resonant low-pass structure with envelope or
-  random stepped control, tuned more for synth use than guitar picking nuance.
-- `UP` now exposes an alternate parameter layer rather than changing to a
-  separate opposite-polarity voice.
+- F1shnet is a simple performance filter effect, not a generic S&H utility.
+- The main identity is low-pass auto-wah movement plus a momentary random
+  stepped-filter gesture.
+- The firmware favours immediate playability over menu depth or many modes.
