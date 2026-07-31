@@ -63,6 +63,8 @@ While held, the random S&H values move the filter frequency with an octave-style
 ratio around the stored middle-page range rather than moving the envelope.
 The S&H path has its own lower cutoff floor so low `Main` settings stay bubbly
 rather than muddy.
+The S&H gesture also uses a little extra resonant emphasis so simple oscillator
+waves reveal the random cutoff steps more clearly while staying low-pass.
 The slowest internal S&H clock is deliberately moderate rather than extremely
 slow, so the gesture remains playable.
 

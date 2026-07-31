@@ -112,9 +112,10 @@ public:
         }
         upCutoff = Clamp(upCutoff, 64, 3900);
         downCutoff = Clamp(downCutoff, 64, 3900);
+        int32_t filterResonance = shGesture ? SampleHoldResonance(params.resonance) : params.resonance;
 
-        int32_t filteredUp = ProcessFilter(input, upCutoff, params.resonance, lowUp_, bandUp_);
-        int32_t filteredDown = ProcessFilter(input, downCutoff, params.resonance, lowDown_, bandDown_);
+        int32_t filteredUp = ProcessFilter(input, upCutoff, filterResonance, lowUp_, bandUp_);
+        int32_t filteredDown = ProcessFilter(input, downCutoff, filterResonance, lowDown_, bandDown_);
         int32_t wetUp = (filteredUp * params.outputGain) >> 12;
         int32_t wetDown = (filteredDown * params.outputGain) >> 12;
 
@@ -308,6 +309,11 @@ private:
         return baseCutoff + ((shapedEnvelope * sweepRange) >> 12);
     }
 
+    int32_t SampleHoldResonance(int32_t resonance) const
+    {
+        return Clamp(resonance - 768, 64, 1800);
+    }
+
     bool UpdateSampleHoldGate(bool gateIn)
     {
         if (!gateIn)
@@ -346,7 +352,7 @@ private:
         else
         {
             int32_t difference = envelope_ - driven;
-            int32_t releaseShift = 4 + (((4095 - releaseControl) * 6) >> 12);
+            int32_t releaseShift = 3 + (((4095 - releaseControl) * 5) >> 12);
             int32_t fall = difference >> releaseShift;
             if (fall < 1 && difference > 0)
             {
