@@ -38,7 +38,7 @@ public:
             pageMain_[1] = 2048;
             pageX_[1] = 1536;
             pageY_[1] = 2048;
-            downY_ = 2048;
+            downMain_ = 2048;
             controlsInitialised_ = true;
             previousAltPage_ = altPage;
             previousDownPage_ = downPage;
@@ -55,7 +55,7 @@ public:
         {
             if (downPage)
             {
-                ArmPickup(downYPickup_, downY_, rawYKnob);
+                ArmPickup(downMainPickup_, downMain_, rawMainKnob);
             }
             else
             {
@@ -72,7 +72,7 @@ public:
         int32_t yKnob = pageY_[pageIndex];
         if (downPage)
         {
-            ApplyPickup(downYPickup_, downY_, rawYKnob);
+            ApplyPickup(downMainPickup_, downMain_, rawMainKnob);
         }
         else
         {
@@ -94,7 +94,7 @@ public:
             setupMainKnob,
             setupXKnob,
             setupYKnob,
-            downY_,
+            downMain_,
             cv1,
             cv2,
             auxAudio,
@@ -132,7 +132,7 @@ public:
             --gateOutCounter_;
         }
 
-        UpdateLeds(altPage, shGesture, mainKnob, xKnob, downPage ? downY_ : yKnob);
+        UpdateLeds(altPage, shGesture, downPage ? downMain_ : mainKnob, xKnob, yKnob);
     }
 
 private:
@@ -160,7 +160,7 @@ private:
     bool previousAltPage_ = false;
     bool previousDownPage_ = false;
     bool shGateSeenLow_ = false;
-    int32_t downY_ = 2048;
+    int32_t downMain_ = 2048;
 
     int32_t lowUp_ = 0;
     int32_t bandUp_ = 0;
@@ -179,7 +179,7 @@ private:
     SoftPickup mainPickup_ {};
     SoftPickup xPickup_ {};
     SoftPickup yPickup_ {};
-    SoftPickup downYPickup_ {};
+    SoftPickup downMainPickup_ {};
     int32_t pageMain_[2] {};
     int32_t pageX_[2] {};
     int32_t pageY_[2] {};
@@ -222,7 +222,7 @@ private:
         int32_t setupMainKnob,
         int32_t setupXKnob,
         int32_t setupYKnob,
-        int32_t downYKnob,
+        int32_t downMainKnob,
         int32_t cv1,
         int32_t cv2,
         int32_t auxAudio,
@@ -235,10 +235,10 @@ private:
         params.resonance = 1800 - ((filterYKnob * 1500) >> 12) - (absAux >> 4);
         params.envelopeSensitivity = 256 + ((setupXKnob * 2816) >> 12) + (cv1 >> 2);
         params.envelopeRelease = setupYKnob;
-        int32_t slowAmount = 4095 - downYKnob;
+        int32_t slowAmount = 4095 - downMainKnob;
         int32_t curvedSlow = (slowAmount * slowAmount) >> 12;
         params.sampleRate = 960 + ((curvedSlow * 23040) >> 12);
-        params.outputGain = 2048 + ((setupMainKnob * 4096) >> 12);
+        params.outputGain = 1024 + ((setupMainKnob * 3072) >> 12);
 
         params.rangeBase = Clamp(params.rangeBase, 32, 3900);
         params.depth = Clamp(params.depth, 64, 4095);
@@ -246,7 +246,7 @@ private:
         params.envelopeSensitivity = Clamp(params.envelopeSensitivity, 64, 3072);
         params.envelopeRelease = Clamp(params.envelopeRelease, 64, 4095);
         params.sampleRate = Clamp(params.sampleRate, 48, 48000);
-        params.outputGain = Clamp(params.outputGain, 1024, 4095);
+        params.outputGain = Clamp(params.outputGain, 512, 4095);
 
         return params;
     }

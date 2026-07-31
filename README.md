@@ -36,7 +36,12 @@ folder, and the standard Workshop Computer panel mapping.
 `Main`
 
 In the main page this is filter range / base cutoff.
-In the alternate page this is output gain / drive.
+In the alternate page this is output trim / gain, scaled to tame hot modular
+oscillators before the output clips.
+In the momentary down position this is live S&H clock speed only.
+Down `Main` minimum is the slowest internal S&H clock; down `Main` maximum is
+the fastest. Down `Main` uses soft pickup, so entering the gesture will not jump
+the clock until the physical `Main` knob crosses the stored S&H speed.
 
 `X`
 
@@ -50,10 +55,6 @@ auto-wah sweep without needing guitar-pedal-level gain staging.
 
 In the main page this is resonance.
 In the alternate page this is envelope decay only.
-In the momentary down position this is live S&H clock speed only.
-Down `Y` minimum is the slowest internal S&H clock; down `Y` maximum is the fastest.
-Down `Y` uses soft pickup, so entering the gesture will not jump the clock until
-the physical `Y` knob crosses the stored S&H speed.
 
 `Switch`
 
@@ -67,7 +68,8 @@ physical knob crosses near it, preventing sudden jumps.
 `UP` exposes setup controls but does not change the stored middle-page filter
 range, depth, or resonance just by switching.
 `DOWN` is a gesture layer: it uses the stored middle-page filter settings and
-lets `Y` control S&H clock speed without changing the middle-page resonance.
+lets `Main` control S&H clock speed without changing the middle-page filter
+range.
 While held, the random S&H values move the filter frequency with an octave-style
 ratio around the stored middle-page range rather than moving the envelope.
 The S&H path has its own moderate lower cutoff floor so low `Main` settings stay bubbly
@@ -149,13 +151,13 @@ Divided sample trigger pulse, fired once for every four new S&H values.
 
 `Up` alternate page
 
-- `Main`: Output Gain
+- `Main`: Output Trim
 - `X`: Envelope Sensitivity
 - `Y`: Envelope Decay
 
 `Down` momentary gesture
 
-- `Y`: S&H Speed
+- `Main`: S&H Speed
 
 ## Build
 
