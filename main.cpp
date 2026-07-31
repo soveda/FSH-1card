@@ -313,7 +313,7 @@ private:
 
     int32_t SampleHoldResonance(int32_t resonance) const
     {
-        return Clamp(resonance + 384, 512, 1800);
+        return Clamp(resonance + 192, 384, 1800);
     }
 
     bool UpdateSampleHoldGate(bool gateIn)

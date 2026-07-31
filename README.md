@@ -65,7 +65,8 @@ The S&H path has:
 
 - an octave-style cutoff response around the stored Middle `Main` range.
 - a moderate lower cutoff floor so low `Main` settings stay articulate.
-- damped resonance to avoid harsh ringing spikes.
+- moderately damped resonance to avoid harsh ringing spikes without making the
+  steps too dull.
 
 ## Patch Points
 
