@@ -38,6 +38,8 @@ folder, and the standard Workshop Computer panel mapping.
 In the main page this is filter range / base cutoff.
 In the alternate page this is output trim / gain, scaled to tame hot modular
 oscillators before the output clips.
+The stored startup value is minimum trim, so the card boots conservatively with
+hot oscillator patches.
 In the momentary down position this is live S&H clock speed only.
 Down `Main` minimum is the slowest internal S&H clock; down `Main` maximum is
 the fastest. Down `Main` uses soft pickup, so entering the gesture will not jump
@@ -74,8 +76,8 @@ While held, the random S&H values move the filter frequency with an octave-style
 ratio around the stored middle-page range rather than moving the envelope.
 The S&H path has its own moderate lower cutoff floor so low `Main` settings stay bubbly
 rather than muddy.
-The S&H gesture also uses a little extra resonant emphasis so simple oscillator
-waves reveal the random cutoff steps more clearly while staying low-pass.
+The S&H gesture uses a slightly damped resonance response so simple oscillator
+waves reveal the random cutoff steps without producing harsh ringing spikes.
 The slowest internal S&H clock is deliberately moderate rather than extremely
 slow, so the gesture remains playable.
 
@@ -96,6 +98,7 @@ Consistent modulation for filter range and envelope sensitivity.
 `CV In 2`
 
 Consistent modulation for depth.
+Positive CV makes the envelope/S&H sweep wider; negative CV makes it shallower.
 
 `Pulse In 1`
 

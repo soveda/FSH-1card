@@ -35,7 +35,7 @@ public:
             pageMain_[0] = rawMainKnob;
             pageX_[0] = rawXKnob;
             pageY_[0] = rawYKnob;
-            pageMain_[1] = 2048;
+            pageMain_[1] = 0;
             pageX_[1] = 1536;
             pageY_[1] = 2048;
             downMain_ = 2048;
@@ -231,7 +231,7 @@ private:
         Parameters params {};
 
         params.rangeBase = 32 + ((filterMainKnob * 3488) >> 12) + (cv1 >> 2) + (auxAudio >> 3);
-        params.depth = 256 + ((filterXKnob * 3200) >> 12) + (cv2 >> 3);
+        params.depth = 256 + ((filterXKnob * 3200) >> 12) + cv2;
         params.resonance = 1800 - ((filterYKnob * 1500) >> 12) - (absAux >> 4);
         params.envelopeSensitivity = 256 + ((setupXKnob * 2816) >> 12) + (cv1 >> 2);
         params.envelopeRelease = setupYKnob;
@@ -313,7 +313,7 @@ private:
 
     int32_t SampleHoldResonance(int32_t resonance) const
     {
-        return Clamp(resonance - 768, 64, 1800);
+        return Clamp(resonance + 384, 512, 1800);
     }
 
     bool UpdateSampleHoldGate(bool gateIn)
