@@ -6,6 +6,11 @@ Computer.
 This version is now aimed much more directly at the Maestro FSH-1 / modern
 F1shy style idea: a voltage-controlled low-pass filter that can be driven either
 by synth dynamics or by stepped sample-and-hold modulation.
+The normal middle/up behavior is an envelope-controlled low-pass filter, while
+the S&H gesture uses a separate pitch-like low-pass filter path.
+The S&H gesture is tuned as a pitch-like filter movement: random steps move the
+filter frequency around the stored base range, up to roughly an octave below and
+above before panel depth scaling and output clipping.
 
 Rather than cloning a specific schematic, it adapts that behavior to the
 Workshop Computer panel and patch points, using one core voice plus two control
@@ -54,6 +59,10 @@ physical knob crosses near it, preventing sudden jumps.
 range, depth, or resonance just by switching.
 `DOWN` is a gesture layer: it uses the stored middle-page filter settings and
 lets `Y` control S&H clock speed without changing the middle-page resonance.
+While held, the random S&H values move the filter frequency with an octave-style
+ratio around the stored middle-page range rather than moving the envelope.
+The S&H path has its own lower cutoff floor so low `Main` settings stay bubbly
+rather than muddy.
 The slowest internal S&H clock is deliberately moderate rather than extremely
 slow, so the gesture remains playable.
 
@@ -83,11 +92,19 @@ In filter modes it can kick the envelope open.
 
 `Pulse In 2`
 
-S&H gate input. Forces the sample-and-hold gesture high while held.
+S&H gate input. After seeing a real low-to-high gate, it forces the
+sample-and-hold gesture high while held; this avoids a floating input stealing
+the envelope-filter audio path.
 
-`Audio Out 1/2`
+`Audio Out 1`
 
-Duplicate processed output.
+Fully wet envelope-up low-pass output. Plucks and transients open the filter upward.
+
+`Audio Out 2`
+
+Fully wet envelope-down low-pass output. Plucks and transients close the filter from the
+same stored range, giving the opposite direction. During S&H gesture both audio
+outs carry the same pitch-like S&H low-pass voice.
 
 `CV Out 1`
 
@@ -103,7 +120,7 @@ Mirrors Pulse In 1.
 
 `Pulse Out 2`
 
-Sample trigger pulse whenever a new S&H value is taken.
+Divided sample trigger pulse, fired once for every four new S&H values.
 
 ## LEDs
 

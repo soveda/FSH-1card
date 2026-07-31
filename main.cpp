@@ -21,13 +21,14 @@ public:
 
         bool clockIn = PulseIn1();
         bool shGateIn = PulseIn2();
+        bool shGateActive = UpdateSampleHoldGate(shGateIn);
         bool clockEdge = clockIn && !lastClockIn_;
         lastClockIn_ = clockIn;
 
         Switch switchPos = SwitchVal();
         bool altPage = (switchPos == Switch::Up);
         bool downPage = (switchPos == Switch::Down);
-        bool shGesture = downPage || shGateIn;
+        bool shGesture = downPage || shGateActive;
 
         if (!controlsInitialised_)
         {
@@ -102,22 +103,23 @@ public:
         UpdateEnvelope(absInput, params.envelopeSensitivity, params.envelopeRelease, clockEdge);
         UpdateSampleHold(params.sampleRate, clockEdge);
 
-        int32_t modSource = envelope_;
+        int32_t upCutoff = EnvelopeCutoff(params.rangeBase, params.depth, false);
+        int32_t downCutoff = EnvelopeCutoff(params.rangeBase, params.depth, true);
         if (shGesture)
         {
-            modSource = heldValue_;
+            upCutoff = SampleHoldCutoff(params.rangeBase, params.depth);
+            downCutoff = upCutoff;
         }
+        upCutoff = Clamp(upCutoff, 64, 3900);
+        downCutoff = Clamp(downCutoff, 64, 3900);
 
-        int32_t cutoff = params.rangeBase + ((modSource * params.depth) >> 12);
-        cutoff = Clamp(cutoff, 64, 3900);
+        int32_t filteredUp = ProcessFilter(input, upCutoff, params.resonance, lowUp_, bandUp_);
+        int32_t filteredDown = ProcessFilter(input, downCutoff, params.resonance, lowDown_, bandDown_);
+        int32_t wetUp = (filteredUp * params.outputGain) >> 12;
+        int32_t wetDown = (filteredDown * params.outputGain) >> 12;
 
-        int32_t filtered = ProcessFilter(input, cutoff, params.resonance);
-        int32_t wet = (filtered * params.outputGain) >> 12;
-        int32_t dry = input >> 3;
-        int32_t output = SoftClip12(dry + wet);
-
-        AudioOut1(output);
-        AudioOut2(output);
+        AudioOut1(SoftClip12(wetUp));
+        AudioOut2(SoftClip12(wetDown));
 
         CVOut1(heldValue_);
         CVOut2(envelope_);
@@ -149,18 +151,24 @@ private:
     int32_t sampleCounter_ = 0;
     int32_t samplePeriod_ = 1200;
     int32_t gateOutCounter_ = 0;
+    int32_t samplePulseDivider_ = 0;
+    int32_t shGateHighCounter_ = 0;
     int32_t rng_ = 0x13579BDF;
     bool lastClockIn_ = false;
     bool controlsInitialised_ = false;
     bool previousAltPage_ = false;
     bool previousDownPage_ = false;
+    bool shGateSeenLow_ = false;
     int32_t downY_ = 2048;
 
-    int32_t low_ = 0;
-    int32_t band_ = 0;
+    int32_t lowUp_ = 0;
+    int32_t bandUp_ = 0;
+    int32_t lowDown_ = 0;
+    int32_t bandDown_ = 0;
 
     static constexpr int32_t kGateLength = 1600;
     static constexpr int32_t kPickupThreshold = 96;
+    static constexpr int32_t kGateQualifySamples = 240;
 
     struct SoftPickup
     {
@@ -224,7 +232,7 @@ private:
         params.rangeBase = 192 + ((filterMainKnob * 3328) >> 12) + (cv1 >> 2) + (auxAudio >> 3);
         params.depth = 256 + ((filterXKnob * 3200) >> 12) + (cv2 >> 3);
         params.resonance = 1800 - ((filterYKnob * 1500) >> 12) - (absAux >> 4);
-        params.envelopeSensitivity = 768 + ((setupXKnob * 3000) >> 12) + (cv1 >> 1);
+        params.envelopeSensitivity = 1024 + ((setupXKnob * 7168) >> 12) + cv1;
         params.envelopeRelease = setupYKnob;
         int32_t slowAmount = 4095 - downYKnob;
         int32_t curvedSlow = (slowAmount * slowAmount) >> 12;
@@ -234,7 +242,7 @@ private:
         params.rangeBase = Clamp(params.rangeBase, 64, 3900);
         params.depth = Clamp(params.depth, 64, 4095);
         params.resonance = Clamp(params.resonance, 64, 1800);
-        params.envelopeSensitivity = Clamp(params.envelopeSensitivity, 128, 4095);
+        params.envelopeSensitivity = Clamp(params.envelopeSensitivity, 128, 8192);
         params.envelopeRelease = Clamp(params.envelopeRelease, 64, 4095);
         params.sampleRate = Clamp(params.sampleRate, 48, 48000);
         params.outputGain = Clamp(params.outputGain, 1024, 4095);
@@ -278,9 +286,57 @@ private:
         return static_cast<int16_t>(sample);
     }
 
+    int32_t SampleHoldCutoff(int32_t baseCutoff, int32_t depth) const
+    {
+        baseCutoff = Clamp(baseCutoff, 384, 3900);
+        int32_t holdUnipolar = heldValue_ + 2048;
+        int32_t ratio = 2048 + holdUnipolar;
+        int32_t octaveCutoff = (baseCutoff * ratio) >> 12;
+        int32_t pitchDepth = 512 + ((depth * 3584) >> 12);
+        return baseCutoff + (((octaveCutoff - baseCutoff) * pitchDepth) >> 12);
+    }
+
+    int32_t EnvelopeCutoff(int32_t baseCutoff, int32_t depth, bool inverted) const
+    {
+        int32_t sweepRange = 256 + ((depth * 3328) >> 12);
+        int32_t shapedEnvelope = envelope_ + (envelope_ >> 1);
+        shapedEnvelope = Clamp(shapedEnvelope, 0, 4095);
+        if (inverted)
+        {
+            shapedEnvelope = 4095 - shapedEnvelope;
+        }
+        return baseCutoff + ((shapedEnvelope * sweepRange) >> 12);
+    }
+
+    bool UpdateSampleHoldGate(bool gateIn)
+    {
+        if (!gateIn)
+        {
+            shGateSeenLow_ = true;
+            shGateHighCounter_ = 0;
+            return false;
+        }
+
+        if (!shGateSeenLow_)
+        {
+            return false;
+        }
+
+        if (shGateHighCounter_ < kGateQualifySamples)
+        {
+            ++shGateHighCounter_;
+        }
+        return shGateHighCounter_ >= kGateQualifySamples;
+    }
+
     void UpdateEnvelope(int32_t absInput, int32_t sensitivityControl, int32_t releaseControl, bool clockEdge)
     {
-        int32_t driven = (absInput * sensitivityControl) >> 11;
+        int32_t liftedInput = absInput + (absInput >> 1);
+        if (liftedInput < 8)
+        {
+            liftedInput = 0;
+        }
+        int32_t driven = (liftedInput * sensitivityControl) >> 9;
         driven = Clamp(driven, 0, 4095);
 
         if (driven > envelope_)
@@ -290,8 +346,8 @@ private:
         else
         {
             int32_t difference = envelope_ - driven;
-            int32_t releaseAmount = 2 + ((releaseControl * 510) >> 12);
-            int32_t fall = (difference * releaseAmount) >> 12;
+            int32_t releaseShift = 4 + (((4095 - releaseControl) * 6) >> 12);
+            int32_t fall = difference >> releaseShift;
             if (fall < 1 && difference > 0)
             {
                 fall = 1;
@@ -318,7 +374,12 @@ private:
         {
             sampleCounter_ = 0;
             heldValue_ = NextRandomSigned();
-            gateOutCounter_ = kGateLength;
+            ++samplePulseDivider_;
+            if (samplePulseDivider_ >= 4)
+            {
+                samplePulseDivider_ = 0;
+                gateOutCounter_ = kGateLength;
+            }
         }
     }
 
@@ -330,16 +391,16 @@ private:
         return static_cast<int32_t>((rng_ >> 20) & 4095) - 2048;
     }
 
-    int32_t ProcessFilter(int32_t input, int32_t cutoff, int32_t resonance)
+    int32_t ProcessFilter(int32_t input, int32_t cutoff, int32_t resonance, int32_t &low, int32_t &band)
     {
-        int32_t notch = input - low_ - ((band_ * resonance) >> 12);
-        band_ += (cutoff * notch) >> 12;
-        band_ = Clamp(band_, -32768, 32767);
+        int32_t notch = input - low - ((band * resonance) >> 12);
+        band += (cutoff * notch) >> 12;
+        band = Clamp(band, -32768, 32767);
 
-        low_ += (cutoff * band_) >> 12;
-        low_ = Clamp(low_, -32768, 32767);
+        low += (cutoff * band) >> 12;
+        low = Clamp(low, -32768, 32767);
 
-        return low_;
+        return low;
     }
 
     void UpdateLeds(bool altPage, bool shGesture, int32_t mainKnob, int32_t xKnob, int32_t yKnob)
