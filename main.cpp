@@ -289,7 +289,7 @@ private:
 
     int32_t SampleHoldCutoff(int32_t baseCutoff, int32_t depth) const
     {
-        baseCutoff = Clamp(baseCutoff, 384, 3900);
+        baseCutoff = Clamp(baseCutoff, 256, 3900);
         int32_t holdUnipolar = heldValue_ + 2048;
         int32_t ratio = 2048 + holdUnipolar;
         int32_t octaveCutoff = (baseCutoff * ratio) >> 12;
