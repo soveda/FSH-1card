@@ -16,12 +16,15 @@ Version: 0.1.0
 Status: Prototype
 License: MIT
 date-created: 2026-07-28
-date-updated: 2026-07-28
+date-updated: 2026-07-31
 tags:
   - effect
   - filter
   - sample-hold
   - envelope-filter
+contact:
+  social:
+    github: https://github.com/soveda
 
 readme: |
   # F1shnet
