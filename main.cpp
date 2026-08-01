@@ -118,6 +118,10 @@ public:
         int32_t filteredDown = ProcessFilter(input, downCutoff, filterResonance, lowDown_, bandDown_);
         int32_t wetUp = (filteredUp * params.outputGain) >> 12;
         int32_t wetDown = (filteredDown * params.outputGain) >> 12;
+        if (shGesture)
+        {
+            ApplySampleHoldPingPong(wetUp, wetDown);
+        }
 
         AudioOut1(SoftClip12(wetUp));
         AudioOut2(SoftClip12(wetDown));
@@ -154,12 +158,15 @@ private:
     int32_t gateOutCounter_ = 0;
     int32_t samplePulseDivider_ = 0;
     int32_t shGateHighCounter_ = 0;
+    int32_t shPan_ = 0;
+    int32_t shPanTarget_ = 0;
     int32_t rng_ = 0x13579BDF;
     bool lastClockIn_ = false;
     bool controlsInitialised_ = false;
     bool previousAltPage_ = false;
     bool previousDownPage_ = false;
     bool shGateSeenLow_ = false;
+    bool shPingPongRight_ = false;
     int32_t downMain_ = 2048;
 
     int32_t lowUp_ = 0;
@@ -170,6 +177,8 @@ private:
     static constexpr int32_t kGateLength = 1600;
     static constexpr int32_t kPickupThreshold = 96;
     static constexpr int32_t kGateQualifySamples = 240;
+    static constexpr int32_t kPingPongQuietGain = 1024;
+    static constexpr int32_t kPingPongSlewStep = 48;
 
     struct SoftPickup
     {
@@ -291,9 +300,9 @@ private:
     {
         baseCutoff = Clamp(baseCutoff, 256, 3900);
         int32_t holdUnipolar = heldValue_ + 2048;
-        int32_t ratio = 2048 + holdUnipolar;
+        int32_t ratio = 1024 + ((holdUnipolar * 6144) >> 12);
         int32_t octaveCutoff = (baseCutoff * ratio) >> 12;
-        int32_t pitchDepth = 512 + ((depth * 3584) >> 12);
+        int32_t pitchDepth = 640 + ((depth * 3456) >> 12);
         return baseCutoff + (((octaveCutoff - baseCutoff) * pitchDepth) >> 12);
     }
 
@@ -314,6 +323,32 @@ private:
     int32_t SampleHoldResonance(int32_t resonance) const
     {
         return Clamp(resonance + 192, 384, 1800);
+    }
+
+    void ApplySampleHoldPingPong(int32_t &left, int32_t &right)
+    {
+        int32_t active = left;
+        if (shPan_ < shPanTarget_)
+        {
+            shPan_ += kPingPongSlewStep;
+            if (shPan_ > shPanTarget_)
+            {
+                shPan_ = shPanTarget_;
+            }
+        }
+        else if (shPan_ > shPanTarget_)
+        {
+            shPan_ -= kPingPongSlewStep;
+            if (shPan_ < shPanTarget_)
+            {
+                shPan_ = shPanTarget_;
+            }
+        }
+
+        int32_t leftGain = 4095 - (((4095 - kPingPongQuietGain) * shPan_) >> 12);
+        int32_t rightGain = kPingPongQuietGain + (((4095 - kPingPongQuietGain) * shPan_) >> 12);
+        left = (active * leftGain) >> 12;
+        right = (active * rightGain) >> 12;
     }
 
     bool UpdateSampleHoldGate(bool gateIn)
@@ -381,6 +416,8 @@ private:
         {
             sampleCounter_ = 0;
             heldValue_ = NextRandomSigned();
+            shPingPongRight_ = !shPingPongRight_;
+            shPanTarget_ = shPingPongRight_ ? 4095 : 0;
             ++samplePulseDivider_;
             if (samplePulseDivider_ >= 4)
             {

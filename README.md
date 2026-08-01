@@ -36,7 +36,8 @@ soft pickup for the page you return to.
 `Up` setup page:
 
 - `Main`: output trim. This is scaled for hot modular signals and boots at
-  minimum trim.
+  minimum trim. It is a post-filter output level control, not an input
+  attenuator, so it does not change envelope sensitivity or filter drive.
 - `X`: envelope sensitivity. The range is tuned for euro-level oscillators,
   drum machines, and other modular signals.
 - `Y`: envelope decay. Minimum is longest, maximum is shortest.
@@ -58,15 +59,18 @@ with opposite envelope directions:
   stored range.
 
 Holding `Down` or holding `Pulse In 2` replaces the envelope movement with the
-sample-and-hold gesture. In S&H mode, both audio outputs carry the same
-pitch-like stepped low-pass voice.
+sample-and-hold gesture. In S&H mode, the stepped low-pass voice ping-pongs
+between the two audio outputs on each new S&H sample. The active side is full
+level and the opposite side stays quietly present rather than hard muted. The
+pan movement uses a short crossfade to avoid clicks at the start of each step.
 
 The S&H path has:
 
-- an octave-style cutoff response around the stored Middle `Main` range.
+- a wider pitch-style cutoff response around the stored Middle `Main` range.
 - a moderate lower cutoff floor so low `Main` settings stay articulate.
 - moderately damped resonance to avoid harsh ringing spikes without making the
   steps too dull.
+- ping-pong output movement between `Audio Out 1` and `Audio Out 2`.
 
 ## Patch Points
 
@@ -101,13 +105,13 @@ envelope-filter path.
 
 `Audio Out 1`
 
-Fully wet envelope-up low-pass output. During S&H gesture this carries the
-shared S&H low-pass voice.
+Fully wet envelope-up low-pass output. During S&H gesture this is one side of
+the ping-pong S&H low-pass voice.
 
 `Audio Out 2`
 
-Fully wet envelope-down low-pass output. During S&H gesture this carries the
-shared S&H low-pass voice.
+Fully wet envelope-down low-pass output. During S&H gesture this is the other
+side of the ping-pong S&H low-pass voice.
 
 `CV Out 1`
 
@@ -154,7 +158,7 @@ This is a self-contained Workshop Computer release-style folder:
 - `pico_sdk_import.cmake`
 - `CMakeLists.txt`
 - `info.yaml`
-- `UF2/F1shnet.0.1.0.uf2`
+- `UF2/F1shnet.0.1.1.uf2`
 
 Typical Pico SDK build flow:
 
