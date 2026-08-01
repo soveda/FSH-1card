@@ -15,7 +15,7 @@ immediately pinning it open, and the output trim starts safely low on boot.
 ## Modes
 
 - `Middle`: main envelope-filter page.
-- `Up`: setup page for output trim and envelope response.
+- `Up`: setup page for output trim, envelope sensitivity, and shared resonance.
 - `Down`: momentary sample-and-hold performance gesture.
 
 `Up` and `Middle` use soft pickup. A knob will keep the stored value for that
@@ -41,7 +41,8 @@ soft pickup for the page you return to.
   attenuator, so it does not change envelope sensitivity or filter drive.
 - `X`: envelope sensitivity. The range is tuned for euro-level oscillators,
   drum machines, and other modular signals.
-- `Y`: envelope decay. Minimum is longest, maximum is shortest.
+- `Y`: resonance, shared with the Middle page. It uses soft pickup, but once
+  picked up it changes the same resonance setting as Middle `Y`.
 
 `Down` momentary gesture:
 
@@ -51,7 +52,10 @@ soft pickup for the page you return to.
 
 ## Audio Behaviour
 
-In normal envelope mode, the card is a wet low-pass auto-wah style effect.
+In normal envelope mode, the card is a wet low-pass auto-wah style effect. It
+uses an envelope follower: the rectified input level opens the filter, then the
+internal follower release lets it fall back. That release/decay is fixed at a
+medium musical setting rather than exposed as a performance control.
 `Audio Out 1` and `Audio Out 2` use the same input and filter core settings, but
 with opposite envelope directions:
 

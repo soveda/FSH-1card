@@ -37,7 +37,6 @@ public:
             pageY_[0] = rawYKnob;
             pageMain_[1] = 0;
             pageX_[1] = 1536;
-            pageY_[1] = 2048;
             downMain_ = 2048;
             controlsInitialised_ = true;
             previousAltPage_ = altPage;
@@ -48,7 +47,7 @@ public:
         {
             ArmPickup(mainPickup_, pageMain_[altPage ? 1 : 0], rawMainKnob);
             ArmPickup(xPickup_, pageX_[altPage ? 1 : 0], rawXKnob);
-            ArmPickup(yPickup_, pageY_[altPage ? 1 : 0], rawYKnob);
+            ArmPickup(yPickup_, pageY_[0], rawYKnob);
             previousAltPage_ = altPage;
         }
         if (previousDownPage_ != downPage)
@@ -61,7 +60,7 @@ public:
             {
                 ArmPickup(mainPickup_, pageMain_[altPage ? 1 : 0], rawMainKnob);
                 ArmPickup(xPickup_, pageX_[altPage ? 1 : 0], rawXKnob);
-                ArmPickup(yPickup_, pageY_[altPage ? 1 : 0], rawYKnob);
+                ArmPickup(yPickup_, pageY_[0], rawYKnob);
             }
             previousDownPage_ = downPage;
         }
@@ -69,7 +68,7 @@ public:
         const int pageIndex = altPage ? 1 : 0;
         int32_t mainKnob = pageMain_[pageIndex];
         int32_t xKnob = pageX_[pageIndex];
-        int32_t yKnob = pageY_[pageIndex];
+        int32_t yKnob = pageY_[0];
         if (downPage)
         {
             ApplyPickup(downMainPickup_, downMain_, rawMainKnob);
@@ -78,22 +77,20 @@ public:
         {
             mainKnob = ApplyPickup(mainPickup_, pageMain_[pageIndex], rawMainKnob);
             xKnob = ApplyPickup(xPickup_, pageX_[pageIndex], rawXKnob);
-            yKnob = ApplyPickup(yPickup_, pageY_[pageIndex], rawYKnob);
+            yKnob = ApplyPickup(yPickup_, pageY_[0], rawYKnob);
         }
 
         const int32_t filterMainKnob = (altPage || downPage) ? pageMain_[0] : mainKnob;
         const int32_t filterXKnob = (altPage || downPage) ? pageX_[0] : xKnob;
-        const int32_t filterYKnob = (altPage || downPage) ? pageY_[0] : yKnob;
+        const int32_t filterYKnob = downPage ? pageY_[0] : yKnob;
         const int32_t setupMainKnob = altPage ? mainKnob : pageMain_[1];
         const int32_t setupXKnob = altPage ? xKnob : pageX_[1];
-        const int32_t setupYKnob = altPage ? yKnob : pageY_[1];
 
         Parameters params = ComputeParameters(filterMainKnob,
             filterXKnob,
             filterYKnob,
             setupMainKnob,
             setupXKnob,
-            setupYKnob,
             downMain_,
             cv1,
             cv2,
@@ -177,6 +174,7 @@ private:
     static constexpr int32_t kGateLength = 1600;
     static constexpr int32_t kPickupThreshold = 96;
     static constexpr int32_t kGateQualifySamples = 240;
+    static constexpr int32_t kFixedEnvelopeReleaseShift = 9;
     static constexpr int32_t kPingPongQuietGain = 1024;
     static constexpr int32_t kPingPongSlewStep = 48;
 
@@ -230,7 +228,6 @@ private:
         int32_t filterYKnob,
         int32_t setupMainKnob,
         int32_t setupXKnob,
-        int32_t setupYKnob,
         int32_t downMainKnob,
         int32_t cv1,
         int32_t cv2,
@@ -243,7 +240,7 @@ private:
         params.depth = 256 + ((filterXKnob * 3200) >> 12) + cv2;
         params.resonance = 1800 - ((filterYKnob * 1500) >> 12) - (absAux >> 4);
         params.envelopeSensitivity = 256 + ((setupXKnob * 2816) >> 12) + (cv1 >> 2);
-        params.envelopeRelease = setupYKnob;
+        params.envelopeRelease = kFixedEnvelopeReleaseShift;
         int32_t slowAmount = 4095 - downMainKnob;
         int32_t curvedSlow = (slowAmount * slowAmount) >> 12;
         params.sampleRate = 960 + ((curvedSlow * 23040) >> 12);
@@ -253,7 +250,7 @@ private:
         params.depth = Clamp(params.depth, 64, 4095);
         params.resonance = Clamp(params.resonance, 64, 1800);
         params.envelopeSensitivity = Clamp(params.envelopeSensitivity, 64, 3072);
-        params.envelopeRelease = Clamp(params.envelopeRelease, 64, 4095);
+        params.envelopeRelease = Clamp(params.envelopeRelease, 2, 16);
         params.sampleRate = Clamp(params.sampleRate, 48, 48000);
         params.outputGain = Clamp(params.outputGain, 512, 4095);
 
@@ -372,7 +369,7 @@ private:
         return shGateHighCounter_ >= kGateQualifySamples;
     }
 
-    void UpdateEnvelope(int32_t absInput, int32_t sensitivityControl, int32_t releaseControl, bool clockEdge)
+    void UpdateEnvelope(int32_t absInput, int32_t sensitivityControl, int32_t releaseShift, bool clockEdge)
     {
         if (absInput < 4)
         {
@@ -387,8 +384,7 @@ private:
         }
         else
         {
-            int32_t difference = envelope_ - driven;
-            int32_t releaseShift = 3 + (((4095 - releaseControl) * 5) >> 12);
+            int32_t difference = envelope_;
             int32_t fall = difference >> releaseShift;
             if (fall < 1 && difference > 0)
             {
